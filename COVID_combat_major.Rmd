@@ -21,6 +21,10 @@ ml pandoc
 system("git pull"); rmarkdown::render("COVID_combat_major.Rmd");
 
 
+system("cp -f COVID_combat_major.html ~/www/")
+
+https://hoffmg01.dmz.hpc.mssm.edu/COVID_combat_major.html
+
 
 # cd 
 
@@ -155,6 +159,7 @@ names(resList) <- assayNames(pb)
 
 # Plots
 ```{r plot.vp, fig.height=16, fig.width=10}
+library(cowplot)
 
 figList <- lapply( names(resList), function(CT){
 
