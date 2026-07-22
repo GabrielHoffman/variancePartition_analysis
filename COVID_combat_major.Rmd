@@ -158,7 +158,7 @@ names(resList) <- assayNames(pb)
 
 
 # Plots
-```{r plot.vp, fig.height=24, fig.width=10}
+```{r plot.vp, fig.height=48, fig.width=10}
 library(cowplot)
 
 figList <- lapply( names(resList), function(CT){
