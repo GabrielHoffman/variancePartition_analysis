@@ -177,7 +177,7 @@ figList <- lapply( names(resList), function(CT){
   fig1 | fig2
 })
 
-plot_grid(figList, ncol=2)
+plot_grid(plotlist = figList, ncol=2)
 ```
 
 
