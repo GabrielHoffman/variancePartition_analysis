@@ -1,0 +1,179 @@
+---
+title: "COVID COMBAT study"
+subtitle: '[COvid-19 Multi-omics Blood ATlas (COMBAT) Consortium, Cell, 2022](https://doi.org/10.1016/j.cell.2022.01.012)'
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r Sys.time()`"
+output: 
+  html_document:
+    toc: true
+    smart: true
+    self_contained: true
+---
+
+<!---
+
+
+cd /sc/arion/projects/CommonMind/hoffman/dreamlet_analysis/COVID_combat/
+R --vanilla
+
+
+system("git pull"); rmarkdown::render("COVID_combat_major.Rmd");
+
+
+# https://hoffmg01.hpc.mssm.edu/https://hoffmg01.hpc.mssm.edu/dreamlet_analysis/COVID_combat
+/COVID_combat
+
+# resolve issue reading in 'raw'
+conda activate /sc/arion/work/hoffmg01/R.cache/R/basilisk/1.14.3/zellkonverter/1.13.3/zellkonverterAnnDataEnv-0.10.6
+
+adata = ad.read(h5ad("local.h5ad")
+adata.X = adata.raw.X
+adata.write("covid_counts.h5ad")
+
+
+
+# cd 
+
+--->
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c("png", "pdf"),
+  package.startup.message = FALSE,
+  cache = TRUE,
+  cache.lazy = FALSE)
+```
+
+
+```{r load, cache=FALSE}
+library(DESeq2)
+library(SingleCellExperiment)
+library(dreamlet)
+library(variancePartition)
+library(tidyverse)
+library(GenomicDataStream)
+```
+
+```{r read_data}
+# read single cell RNA-seq
+file = "/sc/arion/projects/CommonMind/hoffman/scRNAseq_data/covid19_combat/covid_counts.h5ad"
+sce = readH5AD(file)
+
+# use HGNC names
+rownames(sce) = rowData(sce)$feature_name
+
+# remove doublets
+sce = sce[,sce$GEX_region != "E: Doublets"]
+
+# remove nan cells
+sce = sce[,sce$major_subset != "nan"]
+```
+
+
+# UMAP provided with data
+```{r plots.UMAP, fig.widht=8, fig.height=6}
+plotProjection(sce, "X_umap", "major_subset")
+```
+
+
+
+```{r merge.data}
+# read metadata
+file = "/sc/arion/projects/CommonMind/hoffman/scRNAseq_data/covid19_combat/CBD-KEY-CLINVAR/COMBAT_CLINVAR_for_processed.txt"
+df = read.table(file, header=TRUE)
+
+# filter and merge metadata
+df = df[df$scRNASeq_sample_ID %in% sce$scRNASeq_sample_ID,]
+idx = match(sce$scRNASeq_sample_ID, df$scRNASeq_sample_ID)
+colData(sce) = cbind(colData(sce), df[idx,])
+
+# For each donor, select the most severe sample
+res = colData(sce) %>%
+	as_tibble %>%
+	select(donor_id, scRNASeq_sample_ID, Source) %>%
+	distinct %>%
+  group_by(donor_id) %>%
+  slice_max(Source)
+
+	# summarize(donor_id, Source, i = which.max(Source),
+		# use_sample_id = scRNASeq_sample_ID[which.max(Source)])
+
+# subset to one sample per donor
+sceSub = sce[,sce$scRNASeq_sample_ID %in% droplevels(res$scRNASeq_sample_ID)]
+
+# Keep only Oxford samples since Source and Institute are confounded:
+# Flu was the only one collected at St_Georges
+sceSub = sceSub[,sceSub$Institute == "Oxford"]
+
+# create pseudobulk
+pb <- aggregateToPseudoBulk(sceSub,
+    assay = "counts",     
+    cluster_id = "major_subset",  
+    sample_id = "scRNASeq_sample_ID",
+    verbose = FALSE)
+```
+
+
+## Properties of dataset
+```{r properties}
+df = data.frame(table(pb$Source))
+colnames(df) = c("Disease status", "Count")
+
+df %>%
+  kbl(row.names=FALSE) %>% 
+  kable_classic(full_width = FALSE) 
+
+df = list()
+df$`# Samples` = ncol(pb)
+df$`# Cells` = ncol(sce)
+df = unlist(df)
+df = data.frame(Property=names(df), count = df)
+
+df %>%  
+  kbl(row.names=FALSE) %>% 
+  kable_classic(full_width = FALSE) 
+```
+
+
+
+```{r DESeq2}
+form = ~ scale(Age) + sex + Source
+
+vp <- lapply(assayNames(pb)[1:3], function(CT){
+
+  countMat <- assay(pb, CT)
+  keep <- colSums(countMat) > 10000
+
+  dds <- DESeqDataSetFromMatrix(
+    countData = countMat[,keep], 
+    colData = colData(pb)[keep,],
+    design = form)
+
+  dds <- DESeq(dds)
+  vp <- varpart(dds)
+
+  tibble(cluster_id = CT, vp)
+  })
+```
+
+
+
+
+
+   
+
+# Session info
+<details>
+```{r sessionInfo}
+sessionInfo()
+```
+</details>
+
+
+
