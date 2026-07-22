@@ -130,7 +130,7 @@ df %>%
 ```{r DESeq2}
 form = ~ scale(Age) + sex + Source
 
-vp <- mclapply(assayNames(pb)[1:3], function(CT){
+resList <- mclapply(assayNames(pb)[1:3], function(CT){
 
   countMat <- assay(pb, CT)
   keep <- colSums(countMat) > 10000
@@ -140,10 +140,13 @@ vp <- mclapply(assayNames(pb)[1:3], function(CT){
     colData = colData(pb)[keep,],
     design = form)
 
+  # Fit negative binomial models
   dds <- DESeq(dds)
+
+  # Variance partition analysis
   vp <- varpart(dds)
 
-  tibble(cluster_id = CT, vp)
+  list( vp = vp, dds = dds)
   }, mc.cores=8)
 ```
 
@@ -151,6 +154,11 @@ vp <- mclapply(assayNames(pb)[1:3], function(CT){
 # Plots
 ```{r plot.vp, fig.height=12, fig.width=10}
 
+  # Violin plot of variance fractions
+  fig1 <- plotVarPart(sortCols(vp)) + 
+    theme(aspect.ratio=1)
+
+  fig2 <- plotTrendVP( dds, vp, "CountNoise" )
 
 
 
