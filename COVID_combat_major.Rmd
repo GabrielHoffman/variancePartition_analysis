@@ -48,6 +48,7 @@ library(dreamlet)
 library(variancePartition)
 library(tidyverse)
 library(GenomicDataStream)
+library(aplot)
 library(kableExtra)
 library(parallel)
 ```
@@ -128,9 +129,9 @@ df %>%
 
 
 ```{r DESeq2}
-form = ~ scale(Age) + sex + Source
+form <- ~ Age + sex + Source
 
-resList <- mclapply(assayNames(pb)[1:3], function(CT){
+resList <- mclapply(assayNames(pb), function(CT){
 
   countMat <- assay(pb, CT)
   keep <- colSums(countMat) > 10000
@@ -148,24 +149,30 @@ resList <- mclapply(assayNames(pb)[1:3], function(CT){
 
   list( vp = vp, dds = dds)
   }, mc.cores=8)
+names(resList) <- assayNames(pb)
 ```
 
 
 # Plots
-```{r plot.vp, fig.height=12, fig.width=10}
+```{r plot.vp, fig.height=16, fig.width=10}
+
+figList <- lapply( names(resList), function(CT){
+
+  vp <- resList[[CT]]$vp
+  dds <- resList[[CT]]$dds
 
   # Violin plot of variance fractions
   fig1 <- plotVarPart(sortCols(vp)) + 
-    theme(aspect.ratio=1)
+    theme(aspect.ratio=1,
+      plot.title = element_text(hjust = 0.5)) + 
+    ggtitle(CT)
 
   fig2 <- plotTrendVP( dds, vp, "CountNoise" )
 
+  fig1 | fig2
+})
 
-
-
-
-
-
+plot_grid(figList, ncol=2)
 ```
 
 
