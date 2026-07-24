@@ -158,30 +158,98 @@ names(resList) <- assayNames(pb)
 
 
 # Plots
-```{r plot.vp, fig.height=62, fig.width=12}
+```{r plot.vp, fig.height=7, fig.width=10}
 library(cowplot)
 
 figList <- lapply( names(resList), function(CT){
 
-  vp <- resList[[CT]]$vp
+  vp <- sortCols(resList[[CT]]$vp)
   dds <- resList[[CT]]$dds
 
+  col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+
   # Violin plot of variance fractions
-  fig1 <- plotVarPart(sortCols(vp)) + 
+  fig1 <- plotVarPart(sortCols(vp), col=col) + 
     theme(aspect.ratio=1,
       plot.title = element_text(hjust = 0.5)) + 
     ggtitle(CT)
 
+  # Count noise vs magnitude
   fig2 <- plotTrendVP( dds, vp, "CountNoise" )
 
-  fig1 | fig2
+  # top gene from each column
+  i <- apply(vp, 2, which.max)
+
+  # Percent Bars
+  fig3 <- plotPercentBars( vp[i,], col=col)
+
+  genes <- rownames(vp)[i]
+  names(genes) <- names(i)
+
+  # log2 CPM
+  libSize <-  matrix(colSums(counts(dds)), 
+    nrow = nrow(counts(dds)), 
+    ncol = ncol(counts(dds)),
+    by = TRUE)
+  geneExpr <- log2(counts(dds) + 1) - log2(libSize) + log(1e6)
+
+  # Source
+  g <-  genes["Source"]
+  df <-  data.frame(y = geneExpr[g,], colData(dds))
+  fig4 <- plotStratify(
+    formula = y ~ Source, 
+    data = df,
+    ylab = bquote(Expression~(log[2]~CPM)), 
+    main = g,
+    legend=FALSE, 
+    x.labels=TRUE) + 
+    theme(legend.position = "none",
+      axis.text.x = element_text(angle = 0), 
+      aspect.ratio=1)
+
+  # Age
+  g <- genes["Age"]
+  df <- data.frame(y = geneExpr[g,], colData(dds))
+
+  fig5 <- ggplot(df, aes(Age, y)) +
+    geom_point() +
+    theme_bw() +
+    theme(aspect.ratio=1,
+      plot.title = element_text(hjust = 0.5)) +
+    geom_smooth(method="lm") +
+    xlab("Age") +
+    ylab(bquote(Expression~(log[2]~CPM))) +
+    ggtitle(g)
+
+  # Sex
+  g <- genes["sex"]
+  df <- data.frame(y = geneExpr[g,], colData(dds))
+  fig6 <- plotStratify(
+    formula = y ~ sex, 
+    data = df,
+    ylab = bquote(Expression~(log[2]~CPM)), 
+    main = g,
+    legend=FALSE, 
+    x.labels=TRUE) + 
+    theme(legend.position = "none",
+      axis.text.x = element_text(angle = 0), 
+      aspect.ratio=1)
+
+  fig = (fig1 | fig2 | fig3) / (fig4 | fig5 | fig6)
+
+  ggsave(fig, file="~/www/test.pdf", width=12)
 })
 
-plot_grid(plotlist = figList, ncol=1)
+figList
 ```
 
 
-   
+
+
+
+
+
+
 
 # Session info
 <details>
