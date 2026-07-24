@@ -187,11 +187,17 @@ figList <- lapply( names(resList), function(CT){
   names(genes) <- names(i)
 
   # log2 CPM
-  libSize <-  matrix(colSums(counts(dds)), 
-    nrow = nrow(counts(dds)), 
-    ncol = ncol(counts(dds)),
-    by = TRUE)
-  geneExpr <- log2(counts(dds) + 1) - log2(libSize) + log(1e6)
+  # libSize <-  matrix(colSums(counts(dds)), 
+  #   nrow = nrow(counts(dds)), 
+  #   ncol = ncol(counts(dds)),
+  #   by = TRUE)
+  # geneExpr <- log2(counts(dds) + 1) - log2(libSize) + log(1e6)
+
+  # # log2 CPM
+  # geneExpr <- log2(t(t(counts(dds) + 1) / sizeFactors(dds)))
+
+  # log2 CPM
+  geneExpr <- cpm(counts(dds), log = TRUE)
 
   # Source
   g <-  genes["Source"]
