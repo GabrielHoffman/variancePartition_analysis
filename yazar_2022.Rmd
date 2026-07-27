@@ -19,11 +19,8 @@ ml pandoc
 system("git pull"); rmarkdown::render("yazar_2022.Rmd");
 
 
-# https://hoffmg01.hpc.mssm.edu/crumblr_analysis/Yazar_Science_2022/yazar_2022.html
+# https://hoffmg01.hpc.mssm.edu/yazar_2022.html
 
-
-
-# cd 
 
 --->
 
