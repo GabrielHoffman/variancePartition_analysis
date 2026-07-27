@@ -47,6 +47,7 @@ knitr::opts_chunk$set(
 
 ```{r load, cache=FALSE}
 library(DESeq2)
+library(edgeR)
 library(SingleCellExperiment)
 library(dreamlet)
 library(variancePartition)
@@ -181,7 +182,8 @@ figList <- lapply( names(resList), function(CT){
   i <- apply(vp, 2, which.max)
 
   # Percent Bars
-  fig3 <- plotPercentBars( vp[i,], col=col)
+  fig3 <- plotPercentBars( vp[i,], col=col) +
+    theme(aspect.ratio=1)
 
   genes <- rownames(vp)[i]
   names(genes) <- names(i)
