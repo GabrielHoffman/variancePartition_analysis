@@ -74,13 +74,13 @@ pb <- aggregateToPseudoBulk(sce[,sce$cell_type %in% keep],
 
 
 ```{r edgeR}
-form <- ~ Age + Sex
+form <- ~ age + sex
 
 resList <- mclapply(assayNames(pb), function(CT){
 
   countMat <- assay(pb, CT)
  
-  keep <- colSums(countMat) > 10000
+  keep <- colSums(countMat) > 1000
 
   d <- DGEList(
     counts = countMat[,keep], 
