@@ -133,7 +133,7 @@ df %>%
 
 
 
-```{r DESeq2}
+```{r DESeq2, eval=FALSE}
 form <- ~ Age + sex + Source
 
 resList <- mclapply(assayNames(pb), function(CT){
@@ -197,7 +197,7 @@ figList <- lapply( names(resList), function(CT){
 
   vp <- sortCols(resList[[CT]]$vp)
   # dds <- resList[[CT]]$dds
-  fit <- resList[[CT]]$fitdds
+  fit <- resList[[CT]]$fit
   d <- resList[[CT]]$d
 
   col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
