@@ -1,0 +1,88 @@
+---
+title: "OneK1K single cell RNA-seq"
+subtitle: 'https://onek1k.org'
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r Sys.time()`"
+output: 
+  html_document:
+    toc: true
+    smart: true
+    self_contained: true
+---
+
+<!---
+
+
+cd /sc/arion/projects/CommonMind/hoffman/variancePartition_analysis
+ml pandoc 
+
+system("git pull"); rmarkdown::render("yazar_2022.Rmd");
+
+
+# https://hoffmg01.hpc.mssm.edu/crumblr_analysis/Yazar_Science_2022/yazar_2022.html
+
+
+
+# cd 
+
+--->
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c("png", "pdf"),
+  package.startup.message = FALSE,
+  cache = TRUE,
+  cache.lazy = FALSE)
+```
+
+
+```{r load, cache=FALSE}
+library(DESeq2)
+library(edgeR)
+library(SingleCellExperiment)
+library(dreamlet)
+library(variancePartition)
+library(tidyverse)
+library(GenomicDataStream)
+library(aplot)
+library(kableExtra)
+library(parallel)
+```
+
+```{r read.data}
+# read single cell RNA-seq
+file = "/sc/arion/projects/CommonMind/hoffman/scRNAseq_data/Yazar_Science_2022/08984b3c-3189-4732-be22-62f1fe8f15a4.h5ad"
+sce = readH5AD(file)
+
+# keep cell types with suficient counts
+tab = table(sce$cell_type) > 1000
+keep = names(tab)[tab]
+
+# Compute pseudobulk by donor
+pb <- aggregateToPseudoBulk(sce[,sce$cell_type %in% keep],
+    assay = "counts",     
+    cluster_id = "cell_type",  
+    sample_id = "donor_id",
+    verbose = FALSE)
+```
+
+```{r}
+form = Age + Sex
+
+
+
+
+
+
+
+
+
+
+
+
