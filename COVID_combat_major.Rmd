@@ -157,6 +157,30 @@ resList <- mclapply(assayNames(pb), function(CT){
 names(resList) <- assayNames(pb)
 ```
 
+```{r edgeR}
+form <- ~ Age + sex + Source
+
+resList <- mclapply(assayNames(pb), function(CT){
+
+  countMat <- assay(pb, CT)
+  keep <- colSums(countMat) > 10000
+
+  design <- model.matrix(form, data.frame(colData(pb)[keep,]))
+  d <- DGEList(countMat[,keep],)
+  d <- normLibSizes(d)
+  d <- estimateDisp(d, design)
+  fit <- glmQLFit(d, design)
+  fit <- glmQLFTest(fit)
+
+  vp <- varpart(fit, dispObj = d, formula = form)
+
+  list( vp = vp, fit = fit, dispObj = d)
+  }, mc.cores=8)
+names(resList) <- assayNames(pb)
+```
+
+
+
 
 # Plots
 ```{r plot.vp, fig.height=7, fig.width=10}
@@ -166,6 +190,7 @@ figList <- lapply( names(resList), function(CT){
 
   vp <- sortCols(resList[[CT]]$vp)
   dds <- resList[[CT]]$dds
+  fit <- resList[[CT]]$fit
 
   col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
 
@@ -199,7 +224,7 @@ figList <- lapply( names(resList), function(CT){
   # geneExpr <- log2(t(t(counts(dds) + 1) / sizeFactors(dds)))
 
   # log2 CPM
-  geneExpr <- cpm(counts(dds), log = TRUE)
+  geneExpr <- edgeR::cpm(counts(dds), log = TRUE)
 
   # Source
   g <-  genes["Source"]
