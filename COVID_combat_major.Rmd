@@ -163,7 +163,7 @@ form <- ~ Age + sex + Source
 resList <- mclapply(assayNames(pb), function(CT){
 
   countMat <- assay(pb, CT)
-
+ 
   keep <- colSums(countMat) > 10000
 
   d <- DGEList(
@@ -191,9 +191,11 @@ names(resList) <- assayNames(pb)
 
 # Plots
 ```{r plot.vp, fig.height=7, fig.width=12}
-library(cowplot)
-
 figList <- lapply( names(resList), function(CT){
+
+  message(CT)
+
+  if( is(resList[[CT]], "try-error") ) return(NULL)
 
   vp <- sortCols(resList[[CT]]$vp)
   # dds <- resList[[CT]]$dds
