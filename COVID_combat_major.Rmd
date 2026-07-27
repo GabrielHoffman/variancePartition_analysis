@@ -163,11 +163,18 @@ form <- ~ Age + sex + Source
 resList <- mclapply(assayNames(pb), function(CT){
 
   countMat <- assay(pb, CT)
+
   keep <- colSums(countMat) > 10000
 
-  design <- model.matrix(form, data.frame(colData(pb)[keep,]))
-  d <- DGEList(countMat[,keep],)
+  d <- DGEList(
+    counts = countMat[,keep], 
+    samples = data.frame(colData(pb))[keep,])
+  design <- model.matrix(form, d$samples)
+  keep2 <- filterByExpr(d, design, min.count=.1)
+  d <- d[keep2,]
+
   d <- normLibSizes(d)
+  design <- model.matrix(form, d$samples)
   d <- estimateDisp(d, design)
   fit <- glmQLFit(d, design)
   fit <- glmQLFTest(fit)
@@ -183,14 +190,15 @@ names(resList) <- assayNames(pb)
 
 
 # Plots
-```{r plot.vp, fig.height=7, fig.width=10}
+```{r plot.vp, fig.height=7, fig.width=12}
 library(cowplot)
 
 figList <- lapply( names(resList), function(CT){
 
   vp <- sortCols(resList[[CT]]$vp)
-  dds <- resList[[CT]]$dds
-  fit <- resList[[CT]]$fit
+  # dds <- resList[[CT]]$dds
+  fit <- resList[[CT]]$fitdds
+  d <- resList[[CT]]$d
 
   col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
 
@@ -201,7 +209,7 @@ figList <- lapply( names(resList), function(CT){
     ggtitle(CT)
 
   # Count noise vs magnitude
-  fig2 <- plotTrendVP( dds, vp, "CountNoise" )
+  fig2 <- plotTrendVP( fit, vp, "CountNoise" )
 
   # top gene from each column
   i <- apply(vp, 2, which.max)
@@ -214,21 +222,11 @@ figList <- lapply( names(resList), function(CT){
   names(genes) <- names(i)
 
   # log2 CPM
-  # libSize <-  matrix(colSums(counts(dds)), 
-  #   nrow = nrow(counts(dds)), 
-  #   ncol = ncol(counts(dds)),
-  #   by = TRUE)
-  # geneExpr <- log2(counts(dds) + 1) - log2(libSize) + log(1e6)
-
-  # # log2 CPM
-  # geneExpr <- log2(t(t(counts(dds) + 1) / sizeFactors(dds)))
-
-  # log2 CPM
-  geneExpr <- edgeR::cpm(counts(dds), log = TRUE)
+  geneExpr <- edgeR::cpm(d$counts, log = TRUE)
 
   # Source
   g <-  genes["Source"]
-  df <-  data.frame(y = geneExpr[g,], colData(dds))
+  df <-  data.frame(y = geneExpr[g,], d$samples)
   fig4 <- plotStratify(
     formula = y ~ Source, 
     data = df,
@@ -242,7 +240,7 @@ figList <- lapply( names(resList), function(CT){
 
   # Age
   g <- genes["Age"]
-  df <- data.frame(y = geneExpr[g,], colData(dds))
+  df <-  data.frame(y = geneExpr[g,], d$samples)
 
   fig5 <- ggplot(df, aes(Age, y)) +
     geom_point() +
@@ -256,7 +254,7 @@ figList <- lapply( names(resList), function(CT){
 
   # Sex
   g <- genes["sex"]
-  df <- data.frame(y = geneExpr[g,], colData(dds))
+  df <-  data.frame(y = geneExpr[g,], d$samples)
   fig6 <- plotStratify(
     formula = y ~ sex, 
     data = df,
