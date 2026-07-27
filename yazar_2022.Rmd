@@ -143,11 +143,11 @@ figList <- lapply( names(resList), function(CT){
   # log2 CPM
   geneExpr <- edgeR::cpm(d$counts, log = TRUE)
 
-  # Age
-  g <- genes["Age"]
+  # age
+  g <- genes["age"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
 
-  fig5 <- ggplot(df, aes(Age, y)) +
+  fig5 <- ggplot(df, aes(age, y)) +
     geom_point() +
     theme_bw() +
     theme(aspect.ratio=1,
@@ -158,7 +158,7 @@ figList <- lapply( names(resList), function(CT){
     ggtitle(g)
 
   # Sex
-  g <- genes["Sex"]
+  g <- genes["sex"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
   fig6 <- plotStratify(
     formula = y ~ sex, 
