@@ -185,4 +185,18 @@ figList
 
 
 
+# Session Info
+<details>
+```{r sessioninfo, cache=FALSE}
+sessionInfo()
+```
+</details>
+
+
+
+
+
+
+
+
 
