@@ -19,7 +19,10 @@ ml pandoc
 system("git pull"); rmarkdown::render("PsychAD_r0_analysis.Rmd");
 
 
-# https://hoffmg01.hpc.mssm.edu/PsychAD_r0_analysis.html
+system("cp -f PsychAD_r0_analysis.html ~/www/")
+
+
+https://hoffmg01.dmz.hpc.mssm.edu/PsychAD_r0_analysis.html
 
 
 --->
