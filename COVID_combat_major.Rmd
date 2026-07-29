@@ -210,7 +210,7 @@ figList <- lapply( names(resList), function(CT){
     ggtitle(CT)
 
   # Count noise vs magnitude
-  fig2 <- plotTrendVP( fit, vp, "CountNoise", d )
+  fig2 <- plotTrendVP( fit, vp, "CountNoise", dispObj = d )
 
   # top gene from each column
   i <- apply(vp, 2, which.max)
