@@ -84,7 +84,7 @@ resList <- mclapply(assayNames(pb), function(CT){
     counts = countMat[,keep], 
     samples = data.frame(colData(pb))[keep,])
   design <- model.matrix(form, d$samples)
-  keep2 <- filterByExpr(d, design, min.count=.1)
+  keep2 <- filterByExpr(d, design, min.count=2)
   d <- d[keep2,]
 
   d <- normLibSizes(d)
@@ -99,15 +99,6 @@ resList <- mclapply(assayNames(pb), function(CT){
   }, mc.cores=8)
 names(resList) <- assayNames(pb)
 ```
-
-
-data = d$samples
-data$y = d$counts['ENSG00000221983',]
-data$os = with(d$samples, lib.size*norm.factors)
-
-
-
-topTags(fit, n=Inf)['ENSG00000221983',]
 
 
 
@@ -178,8 +169,8 @@ figList <- lapply( names(resList), function(CT){
       aspect.ratio=1)
 
   fig = (fig1 | fig2 | fig3) / (fig5 | fig6)
-  # fig
-  ggsave(fig, file="~/www/test.pdf", width=12)
+  fig
+  # ggsave(fig, file="~/www/test.pdf", width=12)
 })
 
 figList
