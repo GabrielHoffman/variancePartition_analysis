@@ -55,35 +55,37 @@ library(GenomicDataStream)
 library(aplot)
 library(kableExtra)
 library(parallel)
+library(RColorBrewer)
 })
 ```
 
 
 ```{r load.data}
-file <- "/sc/arion/projects/psychAD/NPS-AD/freeze2_rc/pseudobulk/MSSM_2024-02-01_16_17_PB_SubID_class.RDS"
+file <- "/sc/arion/projects/psychAD/NPS-AD/freeze2_rc/pseudobulk/FULL_2024-02-01_18_49_PB_SubID_subclass.RDS"
 
 pb <- readRDS( file )
 
-form <- ~ Age + Sex + AD
+form <- ~ Age + Sex + Brain_bank + Dx + PMI 
+
+pb$Dx <- factor(pb$c11x, c("Control", "AD"), ordered=FALSE)
 
 resList <- mclapply(assayNames(pb), function(CT){
 
   countMat <- assay(pb, CT)
  
-  keep <- colSums(countMat) > 10000
+  keep <- (colSums(countMat) > 1000) & !is.na(pb$Dx)
 
   d <- DGEList(
     counts = countMat[,keep], 
     samples = data.frame(colData(pb))[keep,])
-  design <- model.matrix(form, d$samples)
+  design <- model.matrix(form, droplevels(d$samples))
   keep2 <- filterByExpr(d, design)
   d <- d[keep2,]
 
   d <- normLibSizes(d)
-  design <- model.matrix(form, d$samples)
+  design <- model.matrix(form, droplevels(d$samples))
   d <- estimateDisp(d, design)
   fit <- glmQLFit(d, design)
-  fit <- glmQLFTest(fit)
 
   vp <- varpart(fit, dispObj = d, formula = form)
 
@@ -106,7 +108,8 @@ figList <- lapply( names(resList), function(CT){
   fit <- resList[[CT]]$fit
   d <- resList[[CT]]$d
 
-  col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+  # col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+  col = c(brewer.pal( ncol(vp) - 2, "Set1"), "grey85", "grey65")
 
   # Violin plot of variance fractions
   fig1 <- plotVarPart(sortCols(vp), col=col) + 
@@ -127,14 +130,18 @@ figList <- lapply( names(resList), function(CT){
   genes <- rownames(vp)[i]
   names(genes) <- names(i)
 
+  if( CT == "Micro"){
+    genes["Dx"] <- "PTPRG"
+  }
+
   # log2 CPM
   geneExpr <- edgeR::cpm(d$counts, log = TRUE)
 
   # AD
-  g <- genes["AD"]
+  g <- genes["Dx"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
   fig4 <- plotStratify(
-    formula = y ~ AD, 
+    formula = y ~ Dx, 
     data = df,
     ylab = bquote(Expression~(log[2]~CPM)), 
     main = g,
@@ -147,6 +154,7 @@ figList <- lapply( names(resList), function(CT){
   # Age
   g <- genes["Age"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
+  df <- df[abs(scale(df$y)) < 8,]
 
   fig5 <- ggplot(df, aes(Age, y)) +
     geom_point() +
