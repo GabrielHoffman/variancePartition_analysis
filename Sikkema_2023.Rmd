@@ -80,6 +80,8 @@ pb <- aggregateToPseudoBulk(sce[,keep],
 
 
 ```{r edgeR}
+
+
 form = ~ BMI + age_or_mean_of_age_range + dataset + smoking_status + sex + tissue + anatomical_region_ccf_score
 
 resList <- mclapply(assayNames(pb), function(CT){
