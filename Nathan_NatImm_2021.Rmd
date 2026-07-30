@@ -55,6 +55,7 @@ library(parallel)
 library(kableExtra)
 library(edgeR)
 library(aplot)
+library(RColorBrewer)
 ```
 
 # Load data

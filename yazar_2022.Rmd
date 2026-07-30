@@ -51,6 +51,7 @@ library(GenomicDataStream)
 library(aplot)
 library(kableExtra)
 library(parallel)
+library(RColorBrewer)
 ```
 
 ```{r read.data}
