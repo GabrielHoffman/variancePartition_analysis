@@ -125,16 +125,16 @@ figList <- lapply( names(resList), function(CT){
   # top gene from each column
   i <- apply(vp, 2, which.max)
 
-  # Percent Bars
-  fig3 <- plotPercentBars( vp[i,], col=col) +
-    theme(aspect.ratio=1)
-
   genes <- rownames(vp)[i]
   names(genes) <- names(i)
 
   if( CT == "Micro"){
     genes["Dx"] <- "PTPRG"
   }
+
+  # Percent Bars
+  fig3 <- plotPercentBars( vp[genes,], col=col) +
+    theme(aspect.ratio=1)
 
   # log2 CPM
   geneExpr <- edgeR::cpm(d$counts, log = TRUE)
