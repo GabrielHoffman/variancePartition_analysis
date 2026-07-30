@@ -140,8 +140,9 @@ figList <- lapply( names(resList), function(CT){
   # dds <- resList[[CT]]$dds
   fit <- resList[[CT]]$fit
   d <- resList[[CT]]$d
-
-  col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+  
+  # col = c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+  col = c(brewer.pal( ncol(vp) - 2, "Set1"), "grey85", "grey65")
 
   # Violin plot of variance fractions
   fig1 <- plotVarPart(sortCols(vp), col=col) + 
