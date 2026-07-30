@@ -11,6 +11,23 @@ output:
 ---
 
 
+<!---
+
+
+cd /sc/arion/projects/CommonMind/hoffman/variancePartition_analysis
+ml pandoc 
+
+system("git pull"); rmarkdown::render("Nathan_NatImm_2021.Rmd");
+
+
+system("cp -f Nathan_NatImm_2021.html ~/www/")
+
+https://hoffmg01.dmz.hpc.mssm.edu/Nathan_NatImm_2021.html
+
+--->
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -42,7 +59,7 @@ library(kableExtra)
 # read H5AD file
 path = "/sc/arion/projects/CommonMind/hoffman/scRNAseq_data/Nathan_NatImm_2021/"
 file = paste0(path, "/Nathan_NatImm_2021.h5ad")
-sce = readH5AD(file, use_hdf5=TRUE)   
+sce = readH5AD(file)   
 
 # get only single-cell RNA-seq
 # rest is CITE-seq proteins
@@ -50,7 +67,7 @@ only_rna = grep("prot", rownames(sce), invert=TRUE)
 
 # create variable that distinguishes cells from the same donor
 # but different batches
-sce$donor_batch = with(colData(sce), paste(donor, batch))
+# sce$donor_batch = with(colData(sce), paste(donor, batch))
 sce$batch = factor(sce$batch)
 sce$season = factor(sce$season)
 sce$TB_status = factor(sce$TB_status, c("CONTROL", "CASE"))
@@ -72,7 +89,7 @@ sce$cluster_ids = factor(sce$cluster_ids, unique(tab$cluster_ids))
 pb <- aggregateToPseudoBulk(sce,
     assay = "counts",     
     cluster_id = "cluster_name",  
-    sample_id = "donor_batch")
+    sample_id = "donor")
 ```
 
 
