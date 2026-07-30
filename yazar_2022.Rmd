@@ -84,7 +84,7 @@ resList <- mclapply(assayNames(pb), function(CT){
     counts = countMat[,keep], 
     samples = data.frame(colData(pb))[keep,])
   design <- model.matrix(form, d$samples)
-  keep2 <- filterByExpr(d, design, min.count=2)
+  keep2 <- filterByExpr(d, design)
   d <- d[keep2,]
 
   d <- normLibSizes(d)
