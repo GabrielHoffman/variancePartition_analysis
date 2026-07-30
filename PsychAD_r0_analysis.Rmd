@@ -181,8 +181,8 @@ figList <- lapply( names(resList), function(CT){
       aspect.ratio=1)
 
   fig = (fig1 | fig2 | fig3) / (fig4 | fig5 | fig6)
-  fig
-  # ggsave(fig, file="~/www/test.pdf", width=12)
+  # fig
+  ggsave(fig, file="~/www/test.pdf", width=12)
 })
 
 figList
