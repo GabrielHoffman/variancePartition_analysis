@@ -1,0 +1,212 @@
+
+---
+title: "An integrated cell atlas of the lung in health and disease"
+subtitle: '[Sikkema, et al. Nat Med  (2023)](https://www.nature.com/articles/s41591-023-02327-2)'
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r Sys.time()`"
+documentclass: article
+output: 
+  html_document:
+    toc: true
+    smart: false
+---
+
+
+<!---
+
+
+cd /sc/arion/projects/CommonMind/hoffman/variancePartition_analysis
+ml pandoc 
+
+system("git pull"); rmarkdown::render("Sikkema_2023.Rmd");
+
+
+system("cp -f Sikkema_2023.html ~/www/")
+
+https://hoffmg01.dmz.hpc.mssm.edu/Sikkema_2023.html
+
+--->
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c("png", "pdf"),
+  cache = TRUE,
+  cache.lazy = FALSE)
+```
+
+
+
+
+# Loading
+## Load libraries
+```{r load.packages, cache=FALSE}
+library(SingleCellExperiment)
+library(GenomicDataStream)
+library(dreamlet)
+library(scater)
+library(ggplot2)
+library(tidyverse)
+library(parallel)
+library(kableExtra)
+library(edgeR)
+library(aplot)
+library(RColorBrewer)
+```
+
+# Load data
+```{r load.data}
+# read H5AD file
+path = "/sc/arion/projects/CommonMind/hoffman/scRNAseq_data/Sikkema_2023/"
+# file = paste0(path, "/688185ad-11c2-4172-a53a-f4f1f4076860.h5ad")
+file = paste0(path, "/5f863718-02a6-46cb-83e7-52be988b915b.h5ad")
+sce = readH5AD(file)   
+
+tab = table(sce$cell_type)
+keep = sce$cell_type %in% names(tab)[tab > 20000]
+
+# create pseudobulk 
+pb <- aggregateToPseudoBulk(sce[,keep],
+    assay = "counts",     
+    cluster_id = "cell_type",  
+    sample_id = "donor_id")
+```
+
+
+```{r edgeR}
+form = ~ BMI + age_or_mean_of_age_range + dataset + smoking_status + sex + tissue + anatomical_region_ccf_score
+
+resList <- mclapply(assayNames(pb), function(CT){
+
+  countMat <- assay(pb, CT)
+ 
+  keep <- colSums(countMat) > 1000
+
+  d <- DGEList(
+    counts = countMat[,keep], 
+    samples = data.frame(colData(pb))[keep,])
+  design <- model.matrix(form, d$samples)
+  keep2 <- filterByExpr(d, design)
+  d <- d[keep2,]
+
+  d <- normLibSizes(d)
+  design <- model.matrix(form, d$samples)
+  d <- estimateDisp(d, design)
+  fit <- glmQLFit(d, design)
+  fit <- glmQLFTest(fit, coef="TB_statusCASE")
+
+  vp <- varpart(fit, dispObj = d, formula = form)
+
+  list( vp = vp, fit = fit, dispObj = d)
+  }, mc.cores=8)
+names(resList) <- assayNames(pb)
+```
+
+
+
+
+# Plots
+```{r plot.vp, fig.height=7, fig.width=12}
+pal <- brewer.pal(9, "Set1")
+
+figList <- lapply( names(resList), function(CT){
+
+  message(CT)
+
+  if( is(resList[[CT]], "try-error") ) return(NULL)
+
+  vp <- sortCols(resList[[CT]]$vp)
+  # dds <- resList[[CT]]$dds
+  fit <- resList[[CT]]$fit
+  d <- resList[[CT]]$d
+
+  # col <- c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+  col <- c(pal[seq(1, ncol(vp) - 2)], "grey85", "grey65")
+
+  # Violin plot of variance fractions
+  fig1 <- plotVarPart(sortCols(vp), col=col) + 
+    theme(aspect.ratio=1,
+      plot.title = element_text(hjust = 0.5)) + 
+    ggtitle(CT)
+
+  # Count noise vs magnitude
+  fig2 <- plotTrendVP( fit, vp, "CountNoise", dispObj = d )
+
+  # top gene from each column
+  i <- apply(vp, 2, which.max)
+
+  # Percent Bars
+  fig3 <- plotPercentBars( vp[i,], col=col) +
+    theme(aspect.ratio=1)
+
+  genes <- rownames(vp)[i]
+  names(genes) <- names(i)
+
+  # log2 CPM
+  geneExpr <- edgeR::cpm(d$counts, log = TRUE)
+
+  # TB_statusCASE
+  g <- genes["TB_status"]
+  df <-  data.frame(y = geneExpr[g,], d$samples)
+  fig4 <- plotStratify(
+    formula = y ~ TB_status, 
+    data = df,
+    ylab = bquote(Expression~(log[2]~CPM)), 
+    main = g,
+    legend=FALSE, 
+    x.labels=TRUE) + 
+    theme(legend.position = "none",
+      axis.text.x = element_text(angle = 0), 
+      aspect.ratio=1)
+
+  # age
+  g <- genes["age"]
+  df <-  data.frame(y = geneExpr[g,], d$samples)
+
+  fig5 <- ggplot(df, aes(age, y)) +
+    geom_point() +
+    theme_bw() +
+    theme(aspect.ratio=1,
+      plot.title = element_text(hjust = 0.5)) +
+    geom_smooth(method="lm") +
+    xlab("Age") +
+    ylab(bquote(Expression~(log[2]~CPM))) +
+    ggtitle(g)
+
+  # Sex
+  g <- genes["sex"]
+  df <-  data.frame(y = geneExpr[g,], d$samples)
+  fig6 <- plotStratify(
+    formula = y ~ sex, 
+    data = df,
+    ylab = bquote(Expression~(log[2]~CPM)), 
+    main = g,
+    legend=FALSE, 
+    x.labels=TRUE) + 
+    theme(legend.position = "none",
+      axis.text.x = element_text(angle = 0), 
+      aspect.ratio=1)
+
+  fig = (fig1 | fig2 | fig3) / (fig4 | fig5 | fig6)
+  fig
+  # ggsave(fig, file="~/www/test.pdf", width=12)
+})
+
+figList
+```
+
+
+
+
+
+
+
+
+
+
