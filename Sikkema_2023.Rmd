@@ -76,13 +76,14 @@ pb <- aggregateToPseudoBulk(sce[,keep],
     assay = "counts",     
     cluster_id = "cell_type",  
     sample_id = "donor_id")
+
+pb$Age <- pb$age_or_mean_of_age_range
+pb$CCF <- pb$anatomical_region_ccf_score
 ```
 
 
 ```{r edgeR}
-
-
-form = ~ BMI + age_or_mean_of_age_range + dataset + smoking_status + sex + tissue + anatomical_region_ccf_score
+form <- ~ BMI + Age + dataset + smoking_status + sex + tissue + CCF
 
 resList <- mclapply(assayNames(pb), function(CT){
 
@@ -101,7 +102,6 @@ resList <- mclapply(assayNames(pb), function(CT){
   design <- model.matrix(form, d$samples)
   d <- estimateDisp(d, design)
   fit <- glmQLFit(d, design)
-  fit <- glmQLFTest(fit, coef="TB_statusCASE")
 
   vp <- varpart(fit, dispObj = d, formula = form)
 
