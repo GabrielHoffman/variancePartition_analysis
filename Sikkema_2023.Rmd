@@ -64,8 +64,8 @@ library(RColorBrewer)
 ```{r load.data}
 # read H5AD file
 path = "/sc/arion/projects/CommonMind/hoffman/scRNAseq_data/Sikkema_2023/"
-# file = paste0(path, "/688185ad-11c2-4172-a53a-f4f1f4076860.h5ad")
-file = paste0(path, "/5f863718-02a6-46cb-83e7-52be988b915b.h5ad")
+file = paste0(path, "/688185ad-11c2-4172-a53a-f4f1f4076860.h5ad")
+# file = paste0(path, "/5f863718-02a6-46cb-83e7-52be988b915b.h5ad")
 sce = readH5AD(file, raw=TRUE)   
 
 tab = table(sce$cell_type)
@@ -75,21 +75,22 @@ keep = sce$cell_type %in% names(tab)[tab > 20000]
 pb <- aggregateToPseudoBulk(sce[,keep],
     assay = "counts",     
     cluster_id = "cell_type",  
-    sample_id = "donor_id")
+    sample_id = "sample")
 
 pb$Age <- pb$age_or_mean_of_age_range
 pb$CCF <- pb$anatomical_region_ccf_score
 ```
 
+#+ CCF # + dataset BMI + + smoking_status 
 
 ```{r edgeR}
-form <- ~ BMI + Age + dataset + smoking_status + sex + tissue + CCF
+form <- ~ Age + sex + tissue + dataset 
 
 resList <- mclapply(assayNames(pb), function(CT){
 
   countMat <- assay(pb, CT)
  
-  keep <- colSums(countMat) > 1000
+  keep <- colSums(countMat) > 100
 
   d <- DGEList(
     counts = countMat[,keep], 
