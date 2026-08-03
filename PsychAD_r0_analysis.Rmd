@@ -123,9 +123,10 @@ figList <- lapply( names(resList), function(CT){
   fig2 <- plotTrendVP( fit, vp, "CountNoise", dispObj = d )
 
   # top gene from each column
-  i <- apply(vp, 2, which.max)
+  vp_filter = vp[-grep("ENSG", rownames(vp)),]
+  i <- apply(vp_filter, 2, which.max)
 
-  genes <- rownames(vp)[i]
+  genes <- rownames(vp_filter)[i]
   names(genes) <- names(i)
 
   if( CT == "Micro"){

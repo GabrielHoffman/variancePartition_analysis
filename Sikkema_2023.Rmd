@@ -154,11 +154,11 @@ figList <- lapply( names(resList), function(CT){
   # log2 CPM
   geneExpr <- edgeR::cpm(d$counts, log = TRUE)
 
-  # TB_statusCASE
-  g <- genes["TB_status"]
+  # dataset
+  g <- genes["dataset"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
   fig4 <- plotStratify(
-    formula = y ~ TB_status, 
+    formula = y ~ dataset, 
     data = df,
     ylab = bquote(Expression~(log[2]~CPM)), 
     main = g,
@@ -168,11 +168,11 @@ figList <- lapply( names(resList), function(CT){
       axis.text.x = element_text(angle = 0), 
       aspect.ratio=1)
 
-  # age
-  g <- genes["age"]
+  # Age
+  g <- genes["Age"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
 
-  fig5 <- ggplot(df, aes(age, y)) +
+  fig5 <- ggplot(df, aes(Age, y)) +
     geom_point() +
     theme_bw() +
     theme(aspect.ratio=1,
@@ -182,11 +182,11 @@ figList <- lapply( names(resList), function(CT){
     ylab(bquote(Expression~(log[2]~CPM))) +
     ggtitle(g)
 
-  # Sex
-  g <- genes["sex"]
+  # tissue
+  g <- genes["tissue"]
   df <-  data.frame(y = geneExpr[g,], d$samples)
   fig6 <- plotStratify(
-    formula = y ~ sex, 
+    formula = y ~ tissue, 
     data = df,
     ylab = bquote(Expression~(log[2]~CPM)), 
     main = g,
