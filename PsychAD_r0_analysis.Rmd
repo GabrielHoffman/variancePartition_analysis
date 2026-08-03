@@ -56,6 +56,7 @@ library(aplot)
 library(kableExtra)
 library(parallel)
 library(RColorBrewer)
+source("plotVolcano.R")
 })
 ```
 
@@ -170,26 +171,34 @@ figList <- lapply( names(resList), function(CT){
     ggtitle(g)
 
   # Sex
-  g <- genes["Sex"]
-  df <-  data.frame(y = geneExpr[g,], d$samples)
-  fig6 <- plotStratify(
-    formula = y ~ Sex, 
-    data = df,
-    ylab = bquote(Expression~(log[2]~CPM)), 
-    main = g,
-    legend=FALSE, 
-    x.labels=TRUE) + 
-    theme(legend.position = "none",
-      axis.text.x = element_text(angle = 0), 
-      aspect.ratio=1)
+  # g <- genes["Sex"]
+  # df <-  data.frame(y = geneExpr[g,], d$samples)
+  # fig6 <- plotStratify(
+  #   formula = y ~ Sex, 
+  #   data = df,
+  #   ylab = bquote(Expression~(log[2]~CPM)), 
+  #   main = g,
+  #   legend=FALSE, 
+  #   x.labels=TRUE) + 
+  #   theme(legend.position = "none",
+  #     axis.text.x = element_text(angle = 0), 
+  #     aspect.ratio=1)
 
-  fig = (fig1 | fig2 | fig3) / (fig4 | fig5 | fig6)
+  fit = glmQLFTest(fit, "DxAD")
+  tab = topTags(fit, n=Inf)
+  tab = data.frame(tab)
+  tab$P.Value = tab$PValue
+
+  fig6 = .plotVolcano(tab)
+
+  fig = (fig1 | fig2 | fig3) / (fig6 | fig4 | fig5)
   fig
   # ggsave(fig, file="~/www/test.pdf", width=12)
 })
 
 figList
 ```
+
 
 
 

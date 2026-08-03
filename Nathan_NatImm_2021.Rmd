@@ -127,6 +127,17 @@ names(resList) <- assayNames(pb)
 ```
 
 
+```{r nDE}
+nDE = lapply(resList, function(x){
+
+  topTags(x$fit, n=Inf) %>%
+    data.frame %>%
+    summarize(nDE = sum(FDR < 0.05))
+  })
+nDE = unlist(nDE)
+
+nDE
+```
 
 
 # Plots
@@ -218,10 +229,6 @@ figList <- lapply( names(resList), function(CT){
 
 figList
 ```
-
-
-
-
 
 
 
