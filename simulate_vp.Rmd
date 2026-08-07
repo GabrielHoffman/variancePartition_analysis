@@ -1,0 +1,378 @@
+---
+title: "Estimating signal fraction"
+subtitle: 'Simulations for NB models'
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r format(Sys.time())`"
+documentclass: article
+vignette: >
+  %\VignetteIndexEntry{Negative Binomial Mixed Model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+  %\usepackage[utf8]{inputenc}
+---
+
+
+
+<!---
+
+cd /Users/gabrielhoffman/workspace/repos/variancePartition_analysis
+
+# rm -rf simulate_vp_cache/
+
+rmarkdown::render("simulate_vp.Rmd")
+
+--->
+
+
+<style>
+body {
+text-align: justify}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c("png", "pdf"),
+  cache = TRUE
+)
+```
+
+
+```{r load, cache=FALSE}
+set.seed(1)
+library(MASS)
+library(fastglmm)
+library(tidyverse)
+library(aplot)
+library(parallel)
+library(ggplot2)
+library(tidyverse)
+library(parallel)
+library(ggh4x)
+library(BatchRegression)
+```
+
+
+# Compare methods to estimate noise variance
+```{r sim.total}
+n = 1000
+
+theta.values = c(0.25, 1, 10, 100)
+ 
+# for each mean value for mu
+res = mclapply(seq(-5, 8, length.out=100), function(x){
+  # Replicate simulations per x value
+  lapply(seq(20), function(i){
+  eta = rnorm(n, x, .1)
+  # for each pseudocount value
+  # c(0, 1e-2, 1e-1, 1)
+  lapply(1, function(pseudocount){
+  # for each theta value
+  lapply( theta.values, function(theta){
+  
+    mu = exp(eta) 
+
+    var.mc <- mean(sapply(seq(100), function(i){
+      y <- rnegbin(n, mu = mu, theta = theta)
+      var(log(y + pseudocount))
+      }))
+
+    res.exact = fastglmm:::log_moments_nb_mu(mu, theta, "exact", pseudocount, 1e-4)
+
+    # approx
+    var.signal <- var(log(mu + pseudocount) - (mu + mu^2/theta)/(2*(mu+pseudocount)^2))
+    var.noise <- mean((mu + mu^2 / theta) / (mu + pseudocount)^2)
+    res.approx = data.frame(var.signal = var.signal, var.noise = var.noise)
+
+    # delta
+    var.signal = var(eta)
+    var.noise = mean(1/mu + 1/theta)
+    res.delta = data.frame(var.signal = var.signal, var.noise = var.noise)
+
+    # lognormal
+    var.signal = var(eta)
+    var.noise = mean(log1p(1/mu + 1/theta))
+    res.lognormal = data.frame(var.signal = var.signal, var.noise = var.noise)
+
+    # trigamma
+    var.signal = var(eta)
+    var.noise = mean(trigamma(1/(1/mu + 1/theta)))
+    res.trigamma = data.frame(var.signal = var.signal, var.noise = var.noise)
+
+     bind_rows(
+      tibble(ID = "Exact", res.exact[-3]),
+      tibble(ID = "Pseudocount-approx", res.approx),
+      tibble(ID = "delta", res.delta),
+      tibble(ID = "log-normal", res.lognormal),
+      tibble(ID = "trigamma", res.trigamma)) %>%
+     mutate(var.total = var.signal + var.noise) %>%
+     bind_rows(
+      tibble(ID = "Empirical", var.total = var.mc)) %>%
+     mutate(x = x, pseudocount = pseudocount, theta = theta)
+     }) %>%
+    bind_rows
+  }) %>%
+    bind_rows
+  }) %>%
+  bind_rows
+}, mc.cores=10) %>%
+    bind_rows
+```
+
+## Total variance
+```{r plot.total.variance, fig.height=4, fig.width=10, cache=FALSE}
+lvls = c("Exact", "Pseudocount-approx", "delta", "log-normal", "trigamma", "Empirical")
+
+lt = c(rep("solid", 5), "dashed")
+names(lt) = lvls
+
+custom_y_scales <- list(
+  scale_y_continuous(limits = c(0, 30)), 
+  scale_y_continuous(limits = c(0, 2.5)),
+  scale_y_continuous(limits = c(0, .3)),
+  scale_y_continuous(limits = c(0, .27))) 
+
+res %>%
+  group_by(ID, x, theta, pseudocount) %>%
+  summarize( 
+    se = sd(var.total) / sqrt(n()),
+    mean = mean(var.total) ) %>%
+  mutate(ID = factor(ID, lvls)) %>%
+  ggplot(aes(x, mean, color=ID, linetype=ID)) +
+    geom_line(size=1.5) +
+    theme_classic() +
+    theme(aspect.ratio=1) +    
+    scale_color_brewer(name = "Method", palette = "Set1") +
+    scale_linetype_manual(values = lt) +
+    ylab("Total variance") +
+    xlab("Linear predictor") +
+    facet_wrap( ~ theta, 
+      scales="free_y", 
+      labeller = label_both,
+      nrow = 1) +
+    facetted_pos_scales(y = custom_y_scales) +
+     guides(linetype = "none")
+```
+
+
+
+## Noise variance
+```{r plot.noisevariance, fig.height=4, fig.width=10, cache=FALSE}
+custom_y_scales <- list(
+  scale_y_continuous(limits = c(0, 30)), 
+  scale_y_continuous(limits = c(0, 2.5)),
+  scale_y_continuous(limits = c(0, .3)),
+  scale_y_continuous(limits = c(0, .27))) 
+
+res %>%
+  group_by(ID, x, theta, pseudocount) %>%
+  summarize( 
+    se = sd(var.noise) / sqrt(n()),
+    mean = mean(var.noise) ) %>%
+  mutate(ID = factor(ID, lvls)) %>%
+  ggplot(aes(x, mean, color=ID)) +
+    geom_line(size=1.5) +
+    theme_classic() +
+    theme(aspect.ratio=1) +    
+    scale_color_brewer(name = "Method", palette = "Set1") +
+    ylab("Noise variance") +
+    xlab("Mean of linear predictor") +
+    facet_wrap( ~ theta, 
+      scales="free_y", 
+      labeller = label_both,
+      nrow = 1) +
+    facetted_pos_scales(y = custom_y_scales)
+```
+
+```{r combine1,  fig.height=4, fig.width=12, cache=FALSE}
+v = c(0.01, .1, 1, 10, 100, 1000, 10000)
+
+figList = lapply(theta.values, function(thetA){
+  res %>%
+  filter(theta == thetA) %>%
+  group_by(ID, x, theta, pseudocount) %>%
+  summarize( 
+    se = sd(var.total) / sqrt(n()),
+    mean = mean(var.total) ) %>%
+  mutate(ID = factor(ID, lvls)) %>%
+  ggplot(aes(x, mean, color=ID, linetype=ID)) +
+    geom_line(size=1.5) +
+    theme_classic() +
+    theme(aspect.ratio=1, 
+      legend.position="none",
+      plot.title = element_text(hjust = 0.5)) +    
+    scale_color_brewer(name = "Method", palette = "Set1") +
+    scale_linetype_manual(values = lt) +
+    ylab("Total variance") +
+    xlab("Linear predictor") +
+    scale_x_continuous(
+      sec.axis = dup_axis(
+        name = "Count scale",
+        breaks = log(v),
+        labels = v))+
+    ggtitle(bquote(theta == .(thetA)))
+  })
+ 
+fig0 = figList[[1]] + coord_cartesian(ylim=c(0, 20)) | 
+figList[[2]] + coord_cartesian(ylim=c(0, 2.5)) | 
+figList[[3]] + coord_cartesian(ylim=c(0, .3)) |  
+figList[[4]] + coord_cartesian(ylim=c(0, .3)) +
+  theme(legend.position="bottom") +
+   guides(linetype = "none")
+```
+
+
+ 
+
+and $\theta$ specified by column.
+
+# Simulations
+```{r sim}
+rmse = function(x,y){
+  sqrt(mean((x-y)^2))
+}
+
+simulate_once <- function(n = 5000,
+                          beta = c(3, 2),
+                          theta = 20,
+                          pseudocount = 0) {
+
+  x <- rnorm(n, 0, .1)
+
+  # latent linear predictor
+  eta <- beta[1] + beta[2]*x
+
+  # mean count
+  mu <- exp(eta)
+
+  # negative binomial counts, NB2:
+  # Var(Y | eta) = mu + mu^2 / theta
+  y <- rnegbin(n, mu = mu, theta = theta)
+
+  # empirical squared correlation
+  rho2.true <- cor(log(y + pseudocount), log(mu + pseudocount))^2
+  # rho2.true <- cor(log(y + pseudocount), eta)^2
+
+  fit <- tryCatch({
+    glm(y ~ x, family=negative.binomial(theta))
+    }, error = function(e) {
+      NULL
+    })
+  if( is.null(fit)) return( NULL)
+
+  mu <- predict(fit, type = "response")
+
+  theta = getTheta(fit)
+  var.noise <- mean((mu + mu^2 / theta) / (mu + pseudocount)^2)
+
+  c( true = rho2.true,
+    "Exact" = varpart(fit, method="exact", pseudocount=pseudocount)[1] %>% as.numeric,
+    "Pseudocount-approx" = varpart(fit, method="approx", pseudocount=pseudocount)[1] %>% as.numeric,
+    "delta" = varpart(fit, method="delta")[1] %>% as.numeric,
+    "log-normal" = varpart(fit, method="lognormal")[1] %>% as.numeric,
+    "trigamma" = varpart(fit, method="trigamma")[1] %>% as.numeric)
+}
+
+res <- mclapply(seq(-3, 8, length.out=20), function(x){
+  lapply(theta.values, function(theta){
+  lapply(1, function(pseudocount){
+  
+    message(theta, " ", pseudocount)
+    replicate(1000, 
+      simulate_once(
+      n = 1000,
+      beta = c(x, 3),
+      theta = theta,
+      pseudocount = pseudocount
+      )
+    ) %>% 
+    t %>%
+    data.frame %>%
+    mutate(x=x,
+     pseudocount = pseudocount,
+     theta = theta)
+    }) %>%
+    bind_rows
+    }) %>%
+    bind_rows 
+}, mc.cores=10) %>%
+    bind_rows
+
+```
+
+```{r plot, cache=FALSE, fig.height=9, fig.width=10}
+breaks = c(0-1e-4, 1, 2,  1000)
+
+custom_y_scales <- list(
+  scale_y_continuous(limits = c(0, .062)),  
+  scale_y_continuous(limits = c(0, .11)),  
+  scale_y_continuous(limits = c(0, .5)),
+  scale_y_continuous(limits = c(0, 1))) 
+
+custom_x_scales <- list(
+  scale_x_continuous(limits = c(0, .062)),  
+  scale_x_continuous(limits = c(0, .11)),  
+  scale_x_continuous(limits = c(0, .5)),
+  scale_x_continuous(limits = c(0, 1))) 
+
+fig1 = res %>%
+  pivot_longer(!true&!theta&!x&!pseudocount) %>%
+  mutate(name = gsub("log.normal", "log-normal", name)) %>%
+  mutate(name = gsub("Pseudocount.approx", "Pseudocount-approx", name)) %>%
+  filter(!is.nan(true)) %>%
+  group_by(x, theta, name, pseudocount) %>%
+  summarize(mean = mean(value), 
+            se = sd(value),
+            true = mean(true) ) %>%  
+  mutate(name = factor(name, lvls)) %>%
+  ggplot(aes(true, mean, color=name, fill=name)) +
+    geom_line(size=2) +
+    geom_ribbon(aes(ymin=mean-1.96*se, 
+      ymax=mean+1.96*se), 
+      alpha=.1, 
+      linewidth = 0) +
+    geom_abline(slope=1, intercept=0, color="black") +
+    theme_classic() +
+    theme(aspect.ratio=1, legend.position="bottom") +
+    scale_color_brewer(name = "Method", palette = "Set1") +
+    scale_fill_brewer(name = "Method", palette = "Set1") +
+    xlab("Signal fraction (true)") +
+    ylab("Signal fraction (estimated)") +
+    facet_wrap( ~ theta, labeller = label_both, scales="free", nrow=1) +
+    facetted_pos_scales(
+      x = custom_x_scales,
+      y = custom_y_scales)
+
+fig2 = res %>%
+  filter(!is.na(true)) %>%
+  pivot_longer(!true&!theta&!x&!pseudocount) %>%
+  mutate(name = gsub("log.normal", "log-normal", name)) %>%
+  mutate(name = gsub("Pseudocount.approx", "Pseudocount-approx", name)) %>%
+  filter(!is.nan(true)) %>%
+  group_by(name, theta, pseudocount) %>%
+  summarize(rMSE = rmse(true, value)) %>%  
+  mutate(name = factor(name, lvls)) %>%
+  ggplot(aes(rMSE, fct_rev(name), fill=name)) +
+    geom_col() + 
+    theme_classic() +
+    theme(aspect.ratio=1, legend.position="none") +
+    scale_fill_brewer(name = "Method", palette = "Set1") +
+    facet_grid( ~ theta, labeller = label_both) +
+    ylab("Method") +
+    xlab("Root mean squared error")
+
+fig0 / fig1 / fig2
+```
+
+
+#### Session info
+<details>
+```{r sessionInfo}
+sessionInfo()
+```
+</details>

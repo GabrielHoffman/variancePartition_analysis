@@ -52,6 +52,7 @@ library(aplot)
 library(kableExtra)
 library(parallel)
 library(RColorBrewer)
+source("plotVolcano.R")
 ```
 
 ```{r read.data}
@@ -172,6 +173,13 @@ figList <- lapply( names(resList), function(CT){
       axis.text.x = element_text(angle = 0), 
       aspect.ratio=1)
 
+  tab = topTags(fit, n=Inf)
+  tab = data.frame(tab)
+  tab$P.Value = tab$PValue
+  sum(tab$FDR < 0.05)
+
+  fig4 = .plotVolcano(tab)
+
   fig = (fig1 | fig2 | fig3) / (fig5 | fig6)
   fig
   # ggsave(fig, file="~/www/test.pdf", width=12)
@@ -183,6 +191,41 @@ figList
 
 
 
+```{r supp.plot}
+
+library(cowplot)
+
+figList <- lapply( names(resList), function(CT){
+
+  message(CT)
+
+  if( is(resList[[CT]], "try-error") ) return(NULL)
+
+  vp <- sortCols(resList[[CT]]$vp)
+  fit <- resList[[CT]]$fit
+  d <- resList[[CT]]$d
+
+  # col <- c(ggColorHue(ncol(vp) - 2), "grey85", "grey65")
+  col <- c(pal[seq(1, ncol(vp) - 2)], "grey85", "grey65")
+
+  # Violin plot of variance fractions
+  fig1 <- plotVarPart(vp, col=col) + 
+    theme(aspect.ratio=1,
+      plot.title = element_text(hjust = 0.5),
+      axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggtitle(CT)
+
+  # Count noise vs magnitude
+  fig2 <- plotTrendVP( fit, vp, "CountNoise", dispObj = d )
+  list(fig1 = fig1, fig2 = fig2)
+})
+
+fig = plot_grid(plotlist = unlist(figList[1:16]), ncol=4)
+ggsave(fig, file="Figure_S_OneK1K_1.pdf", height=30, width=12)
+
+fig = plot_grid(plotlist = unlist(figList[17:23]), ncol=4)
+ggsave(fig, file="Figure_S_OneK1K_2.pdf", height=18, width=12)
+```
 
 
 
